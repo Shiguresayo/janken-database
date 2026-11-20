@@ -1,6 +1,20 @@
 
-const players = JSON.parse(localStorage.getItem('janken_players') || '[]');
-const records = JSON.parse(localStorage.getItem('janken_records') || '[]');
+// =====================================
+// Supabase 接続設定
+// =====================================
+
+const SUPABASE_URL = 'ここにProject URL';
+const SUPABASE_ANON_KEY = 'ここにanon key';
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
+
+// =====================================
+// 基本設定
+// =====================================
 
 const handNames = {
   rock: 'グー',
@@ -10,16 +24,36 @@ const handNames = {
 
 const handKeys = ['rock', 'scissors', 'paper'];
 
+let players = [];
 let selectedHands = {};
 
-function saveData() {
-  localStorage.setItem('janken_players', JSON.stringify(players));
-  localStorage.setItem('janken_records', JSON.stringify(records));
+
+// =====================================
+// プレイヤー一覧取得
+// =====================================
+
+async function loadPlayers() {
+  const { data, error } = await db
+    .from('players')
+    .select('id, name');
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  players = data || [];
 }
 
-// 手入力欄を作成
+
+// =====================================
+// 手入力欄の作成
+// =====================================
+
 function createHandInputs() {
   const container = document.getElementById('hand-inputs');
+
+  container.innerHTML = '';
 
   for (let i = 1; i <= 5; i++) {
     const row = document.createElement('div');
@@ -34,6 +68,7 @@ function createHandInputs() {
 
     handKeys.forEach(hand => {
       const button = document.createElement('button');
+
       button.type = 'button';
       button.className = 'hand-option';
       button.textContent = handNames[hand];
@@ -53,96 +88,179 @@ function createHandInputs() {
 
     row.appendChild(number);
     row.appendChild(options);
+
     container.appendChild(row);
   }
 }
 
-createHandInputs();
 
+// =====================================
 // プレイヤー登録
-document.getElementById('player-form').addEventListener('submit', event => {
-  event.preventDefault();
+// =====================================
 
-  const name = document.getElementById('player-name').value.trim();
-  const message = document.getElementById('player-message');
+document.getElementById('player-form')
+  .addEventListener('submit', async event => {
 
-  if (!name) return;
+    event.preventDefault();
 
-  if (players.some(player => player.name === name)) {
-    message.textContent = 'このプレイヤーは既に登録されています。';
-    return;
-  }
+    const name = document
+      .getElementById('player-name')
+      .value.trim();
 
-  players.push({
-    id: crypto.randomUUID(),
-    name
+    const message = document.getElementById('player-message');
+
+    if (!name) return;
+
+    message.textContent = '登録中...';
+
+    const { data, error } = await db
+      .from('players')
+      .insert([{ name }])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        message.textContent = 'このプレイヤーは既に登録されています。';
+      } else {
+        console.error(error);
+        message.textContent = '登録に失敗しました。';
+      }
+      return;
+    }
+
+    players.push(data);
+
+    message.textContent = `${name} を登録しました。`;
+
+    event.target.reset();
   });
 
-  saveData();
 
-  message.textContent = `${name} を登録しました。`;
-  event.target.reset();
-});
-
+// =====================================
 // 対戦記録登録
-document.getElementById('record-form').addEventListener('submit', event => {
-  event.preventDefault();
+// =====================================
 
-  const name = document.getElementById('opponent-name').value.trim();
-  const date = document.getElementById('record-date').value;
-  const message = document.getElementById('record-message');
+document.getElementById('record-form')
+  .addEventListener('submit', async event => {
 
-  const player = players.find(p => p.name === name);
+    event.preventDefault();
 
-  if (!player) {
-    message.textContent = '先にプレイヤーを登録してください。';
-    return;
-  }
+    const name = document
+      .getElementById('opponent-name')
+      .value.trim();
 
-  const hands = Object.keys(selectedHands)
-    .sort((a, b) => Number(a) - Number(b))
-    .map(key => selectedHands[key]);
+    const date = document.getElementById('record-date').value;
 
-  if (!date || hands.length === 0) {
-    message.textContent = '対戦日と少なくとも1手を入力してください。';
-    return;
-  }
+    const message = document.getElementById('record-message');
 
-  records.push({
-    id: crypto.randomUUID(),
-    playerId: player.id,
-    date,
-    hands
+    if (!name || !date) {
+      message.textContent = '対戦相手と対戦日を入力してください。';
+      return;
+    }
+
+    const hands = Object.keys(selectedHands)
+      .sort((a, b) => Number(a) - Number(b))
+      .map(key => selectedHands[key]);
+
+    if (hands.length === 0) {
+      message.textContent = '少なくとも1手を入力してください。';
+      return;
+    }
+
+    // 最新のプレイヤー一覧を取得
+    try {
+      await loadPlayers();
+    } catch {
+      message.textContent = 'プレイヤー情報を取得できませんでした。';
+      return;
+    }
+
+    const player = players.find(
+      p => p.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (!player) {
+      message.textContent = 'プレイヤーが見つかりません。先に登録してください。';
+      return;
+    }
+
+    message.textContent = '保存中...';
+
+    const record = {
+      player_id: player.id,
+      played_at: `${date}T12:00:00`,
+      hand_1: hands[0] || null,
+      hand_2: hands[1] || null,
+      hand_3: hands[2] || null,
+      hand_4: hands[3] || null,
+      hand_5: hands[4] || null
+    };
+
+    const { error } = await db
+      .from('records')
+      .insert([record]);
+
+    if (error) {
+      console.error(error);
+      message.textContent = '対戦記録の保存に失敗しました。';
+      return;
+    }
+
+    message.textContent = '対戦記録を保存しました。';
+
+    selectedHands = {};
+
+    createHandInputs();
+
+    event.target.reset();
+
+    document.getElementById('record-date').value =
+      new Date().toLocaleDateString('sv-SE');
   });
 
-  saveData();
 
-  message.textContent = '対戦記録を保存しました。';
-
-  selectedHands = {};
-  document.getElementById('hand-inputs').innerHTML = '';
-  createHandInputs();
-
-  event.target.reset();
-
-  document.getElementById('record-date').value =
-    new Date().toLocaleDateString('sv-SE');
-});
-
+// =====================================
 // プレイヤー検索
-document.getElementById('search-button').addEventListener('click', searchPlayer);
+// =====================================
 
-document.getElementById('search-name').addEventListener('keydown', event => {
-  if (event.key === 'Enter') searchPlayer();
-});
+document.getElementById('search-button')
+  .addEventListener('click', searchPlayer);
+
+document.getElementById('search-name')
+  .addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      searchPlayer();
+    }
+  });
 
 
-function searchPlayer() {
-  const name = document.getElementById('search-name').value.trim();
+async function searchPlayer() {
+  const name = document
+    .getElementById('search-name')
+    .value.trim();
+
   const result = document.getElementById('search-results');
   const analysis = document.getElementById('analysis-area');
 
-  const player = players.find(p => p.name === name);
+  if (!name) {
+    result.textContent = 'ハンドルネームを入力してください。';
+    return;
+  }
+
+  result.textContent = '検索中...';
+
+  // サーバーからプレイヤー一覧を取得
+  try {
+    await loadPlayers();
+  } catch {
+    result.textContent = 'データベースへの接続に失敗しました。';
+    return;
+  }
+
+  const player = players.find(
+    p => p.name.toLowerCase() === name.toLowerCase()
+  );
 
   if (!player) {
     result.textContent = 'プレイヤーが見つかりません。';
@@ -150,7 +268,32 @@ function searchPlayer() {
     return;
   }
 
-  const playerRecords = records.filter(r => r.playerId === player.id);
+  // 対戦記録を取得
+  const { data, error } = await db
+    .from('records')
+    .select('*')
+    .eq('player_id', player.id)
+    .order('played_at', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    result.textContent = '対戦記録の取得に失敗しました。';
+    return;
+  }
+
+  // DBのカラム形式を既存の分析形式に変換
+  const playerRecords = (data || []).map(record => ({
+    id: record.id,
+    playerId: record.player_id,
+    date: record.played_at,
+    hands: [
+      record.hand_1,
+      record.hand_2,
+      record.hand_3,
+      record.hand_4,
+      record.hand_5
+    ].filter(hand => hand !== null)
+  }));
 
   result.innerHTML = `
     <div class="player-result">
@@ -161,6 +304,30 @@ function searchPlayer() {
 
   showAnalysis(player, playerRecords, analysis);
 }
+
+
+// =====================================
+// 初期化
+// =====================================
+
+async function initialize() {
+  createHandInputs();
+
+  document.getElementById('record-date').value =
+    new Date().toLocaleDateString('sv-SE');
+
+  try {
+    await loadPlayers();
+    console.log('Supabase接続成功');
+  } catch (error) {
+    console.error('Supabase接続失敗:', error);
+    document.getElementById('player-message').textContent =
+      'データベースに接続できません。接続設定を確認してください。';
+  }
+}
+
+initialize();
+
 
 // ここから下に既存の showAnalysis() が続く
 
