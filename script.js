@@ -221,18 +221,64 @@ document.getElementById('record-form')
 
 
 // =====================================
-// プレイヤー検索
+// プレイヤー検索・サジェスト
 // =====================================
 
+const searchInput = document.getElementById('search-name');
+const suggestionContainer = document.getElementById('player-suggestions');
+
+// ひらがな・カタカナを統一する
+function normalizePlayerName(value) {
+  return String(value)
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[\u30A1-\u30F6]/g, char =>
+      String.fromCharCode(char.charCodeAt(0) - 0x60)
+    );
+}
+
+// 入力時に候補を表示
+searchInput.addEventListener('input', () => {
+  const query = normalizePlayerName(searchInput.value);
+
+  suggestionContainer.innerHTML = '';
+
+  if (!query) return;
+
+  const suggestions = players.filter(player =>
+    normalizePlayerName(player.name).includes(query)
+  ).slice(0, 8);
+
+  suggestions.forEach(player => {
+    const button = document.createElement('button');
+
+    button.type = 'button';
+    button.className = 'suggestion-item';
+    button.textContent = player.name;
+
+    button.addEventListener('click', () => {
+      searchInput.value = player.name;
+      suggestionContainer.innerHTML = '';
+      searchPlayer();
+    });
+
+    suggestionContainer.appendChild(button);
+  });
+});
+
+// 検索ボタン
 document.getElementById('search-button')
   .addEventListener('click', searchPlayer);
 
-document.getElementById('search-name')
-  .addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      searchPlayer();
-    }
-  });
+// Enterキー
+searchInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    suggestionContainer.innerHTML = '';
+    searchPlayer();
+  }
+});
 
 
 async function searchPlayer() {
@@ -258,9 +304,9 @@ async function searchPlayer() {
     return;
   }
 
-  const player = players.find(
-    p => p.name.toLowerCase() === name.toLowerCase()
-  );
+ const player = players.find(
+  p => normalizePlayerName(p.name) === normalizePlayerName(name)
+);
 
   if (!player) {
     result.textContent = 'プレイヤーが見つかりません。';
