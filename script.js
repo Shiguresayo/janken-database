@@ -163,273 +163,291 @@ function searchPlayer() {
 
 // 統計分析
 function showAnalysis(player, playerRecords, container) {
-  // 全体の手の出現回数
-  const counts = {
-    rock: 0,
-    scissors: 0,
-    paper: 0
-  };
 
-  let total = 0;
-
-  // 初手の出現回数
-  const firstHandCounts = {
-    rock: 0,
-    scissors: 0,
-    paper: 0
-  };
-
-  let firstHandTotal = 0;
-
-  // 初手ごと・手数ごとの出現回数
-  // firstBranch.rock[1] は「初手グーだった試合の2手目」
-  const firstBranch = {
-    rock: {},
-    scissors: {},
-    paper: {}
-  };
-
-  handKeys.forEach(firstHand => {
-    for (let position = 2; position <= 5; position++) {
-      firstBranch[firstHand][position] = {
-        rock: 0,
-        scissors: 0,
-        paper: 0
-      };
-    }
-  });
-
-  // 直前の手から次の手への遷移
-  const transitions = {};
-
-  handKeys.forEach(hand => {
-    transitions[hand] = {
+  // 手の回数を初期化
+  function createCounts() {
+    return {
       rock: 0,
       scissors: 0,
       paper: 0
     };
-  });
-
-  let transitionTotal = 0;
-
-  // 記録を集計
-  playerRecords.forEach(record => {
-    const hands = record.hands;
-
-    if (!hands || hands.length === 0) return;
-
-    // 全体の出現回数
-    hands.forEach(hand => {
-      if (counts[hand] !== undefined) {
-        counts[hand]++;
-        total++;
-      }
-    });
-
-    // 初手の集計
-    const firstHand = hands[0];
-
-    if (firstHandCounts[firstHand] !== undefined) {
-      firstHandCounts[firstHand]++;
-      firstHandTotal++;
-    }
-
-    // 初手から各手への分岐集計
-    if (firstBranch[firstHand]) {
-      for (let i = 1; i < hands.length; i++) {
-        const nextHand = hands[i];
-
-        if (firstBranch[firstHand][i + 1]) {
-          firstBranch[firstHand][i + 1][nextHand]++;
-        }
-      }
-    }
-
-    // 直前の手から次の手への遷移集計
-    for (let i = 1; i < hands.length; i++) {
-      const previousHand = hands[i - 1];
-      const nextHand = hands[i];
-
-      if (
-        transitions[previousHand] &&
-        transitions[previousHand][nextHand] !== undefined
-      ) {
-        transitions[previousHand][nextHand]++;
-        transitionTotal++;
-      }
-    }
-  });
-
-  if (total === 0) {
-    container.innerHTML = '<p>まだ記録がありません。</p>';
-    return;
   }
 
-  // 全体の出現確率
-  const probabilities = {
-    rock: counts.rock / total,
-    scissors: counts.scissors / total,
-    paper: counts.paper / total
-  };
+  // 期待値を計算
+  function calculateExpectedValues(counts) {
+    const total = handKeys.reduce(
+      (sum, hand) => sum + counts[hand],
+      0
+    );
 
-  // 期待値
-  const expectedValues = {
-    rock: probabilities.scissors - probabilities.paper,
-    scissors: probabilities.paper - probabilities.rock,
-    paper: probabilities.rock - probabilities.scissors
-  };
+    if (total === 0) return null;
 
-  const bestHand = handKeys.reduce((a, b) =>
-    expectedValues[a] > expectedValues[b] ? a : b
-  );
+    const p = {
+      rock: counts.rock / total,
+      scissors: counts.scissors / total,
+      paper: counts.paper / total
+    };
 
-  // 初手確率の表示
-  const firstHandHTML = handKeys.map(hand => {
-    const probability = firstHandTotal > 0
-      ? firstHandCounts[hand] / firstHandTotal
-      : 0;
+    return {
+      rock: p.scissors - p.paper,
+      scissors: p.paper - p.rock,
+      paper: p.rock - p.scissors
+    };
+  }
+
+  // 期待値が最も高い手を取得
+  function getBestHand(counts) {
+    const values = calculateExpectedValues(counts);
+
+    if (!values) return [];
+
+    const maxValue = Math.max(...Object.values(values));
+
+    return handKeys.filter(
+      hand => Math.abs(values[hand] - maxValue) < 0.000001
+    );
+  }
+
+  // 確率表示
+  function probabilityHTML(counts) {
+    const total = handKeys.reduce(
+      (sum, hand) => sum + counts[hand],
+      0
+    );
+
+    if (total === 0) {
+      return '<p>データがありません。</p>';
+    }
 
     return `
-      <div class="record-item">
-        <strong>${handNames[hand]}</strong>：
-        ${(probability * 100).toFixed(1)}%
-        （${firstHandCounts[hand]}回）
+      <div class="probability-list">
+        ${handKeys.map(hand => `
+          <div class="record-item">
+            ${handNames[hand]}：
+            ${(counts[hand] / total * 100).toFixed(1)}%
+            （${counts[hand]}回）
+          </div>
+        `).join('')}
       </div>
     `;
-  }).join('');
+  }
 
-  // 初手ごとの分岐確率の表示
-  const firstBranchHTML = handKeys.map(firstHand => {
-    const sampleCount = firstHandCounts[firstHand];
+  // 推奨手表示
+  function recommendationHTML(counts) {
+    const total = handKeys.reduce(
+      (sum, hand) => sum + counts[hand],
+      0
+    );
 
-    let positionHTML = '';
-
-    for (let position = 2; position <= 5; position++) {
-      const branchCounts = firstBranch[firstHand][position];
-      const branchTotal = handKeys.reduce(
-        (sum, hand) => sum + branchCounts[hand],
-        0
-      );
-
-      if (branchTotal === 0) continue;
-
-      positionHTML += `
-        <div class="branch-position">
-          <h5>${position}手目</h5>
-          <p class="sample-count">
-            該当記録：${branchTotal}件
-          </p>
-          ${handKeys.map(hand => {
-            const probability = branchCounts[hand] / branchTotal;
-
-            return `
-              <div class="record-item">
-                ${handNames[hand]}：
-                ${(probability * 100).toFixed(1)}%
-                （${branchCounts[hand]}回）
-              </div>
-            `;
-          }).join('')}
+    if (total === 0) {
+      return `
+        <div class="player-result">
+          <p>推奨手</p>
+          <p>データ不足</p>
         </div>
       `;
     }
 
+    const bestHands = getBestHand(counts);
+    const values = calculateExpectedValues(counts);
+
     return `
-      <div class="branch-card">
-        <h4>初手が${handNames[firstHand]}の場合</h4>
-        <p class="sample-count">
-          初手の該当試合数：${sampleCount}件
+      <div class="player-result">
+        <p>期待値が最も高い手</p>
+        <h2>
+          ${bestHands.map(hand => handNames[hand]).join(' / ')}
+        </h2>
+        <p>
+          期待値：
+          ${Math.max(...Object.values(values)) >= 0 ? '+' : ''}
+          ${Math.max(...Object.values(values)).toFixed(3)}
         </p>
-        ${
-          sampleCount === 0
-            ? '<p>該当する記録がありません。</p>'
-            : positionHTML || '<p>2手目以降の記録がありません。</p>'
-        }
       </div>
     `;
-  }).join('');
+  }
 
-  // 直前の手からの遷移確率
-  const transitionHTML = handKeys.map(previousHand => {
-    const rowTotal = handKeys.reduce(
-      (sum, hand) => sum + transitions[previousHand][hand],
-      0
-    );
+  // 初手の集計
+  const firstCounts = createCounts();
 
-    return `
-      <div class="branch-card">
-        <h4>直前が${handNames[previousHand]}の場合</h4>
-        <p class="sample-count">該当遷移：${rowTotal}回</p>
-        ${
-          rowTotal === 0
-            ? '<p>該当する記録がありません。</p>'
-            : handKeys.map(hand => `
-              <div class="record-item">
-                ${handNames[hand]}：
-                ${(transitions[previousHand][hand] / rowTotal * 100).toFixed(1)}%
-                （${transitions[previousHand][hand]}回）
+  // 二手目の集計：初手ごと
+  const secondCounts = {
+    rock: createCounts(),
+    scissors: createCounts(),
+    paper: createCounts()
+  };
+
+  // 三手目の集計：初手と二手目の組み合わせごと
+  const thirdCounts = {};
+
+  handKeys.forEach(first => {
+    thirdCounts[first] = {};
+
+    handKeys.forEach(second => {
+      thirdCounts[first][second] = createCounts();
+    });
+  });
+
+  // 全体の出現回数：四手目以降の分析に使用
+  const overallCounts = createCounts();
+
+  // 対戦記録を集計
+  playerRecords.forEach(record => {
+    const hands = record.hands;
+
+    if (!Array.isArray(hands) || hands.length === 0) return;
+
+    // 全体の手の出現回数
+    hands.forEach(hand => {
+      if (overallCounts[hand] !== undefined) {
+        overallCounts[hand]++;
+      }
+    });
+
+    // 初手
+    const first = hands[0];
+
+    if (firstCounts[first] === undefined) return;
+
+    firstCounts[first]++;
+
+    // 二手目
+    if (hands.length >= 2) {
+      const second = hands[1];
+
+      if (secondCounts[first] &&
+          secondCounts[first][second] !== undefined) {
+        secondCounts[first][second]++;
+      }
+    }
+
+    // 三手目
+    if (hands.length >= 3) {
+      const second = hands[1];
+      const third = hands[2];
+
+      if (
+        thirdCounts[first] &&
+        thirdCounts[first][second] &&
+        thirdCounts[first][second][third] !== undefined
+      ) {
+        thirdCounts[first][second][third]++;
+      }
+    }
+  });
+
+  const totalFirst = handKeys.reduce(
+    (sum, hand) => sum + firstCounts[hand],
+    0
+  );
+
+  const totalOverall = handKeys.reduce(
+    (sum, hand) => sum + overallCounts[hand],
+    0
+  );
+
+  if (totalFirst === 0) {
+    container.innerHTML = '<p>まだ記録がありません。</p>';
+    return;
+  }
+
+  // 初手の分析
+  const firstHTML = `
+    <section class="analysis-section">
+      <h4>1. 初手</h4>
+      <p>全試合の初手の出現確率</p>
+      <p>集計対象：${totalFirst}試合</p>
+
+      ${probabilityHTML(firstCounts)}
+      ${recommendationHTML(firstCounts)}
+    </section>
+  `;
+
+  // 二手目の分析
+  const secondHTML = `
+    <section class="analysis-section">
+      <h4>2. 二手目</h4>
+      <p>相手の初手を条件とした二手目の出現確率</p>
+
+      ${handKeys.map(first => {
+        const counts = secondCounts[first];
+
+        const total = handKeys.reduce(
+          (sum, hand) => sum + counts[hand],
+          0
+        );
+
+        return `
+          <div class="branch-card">
+            <h4>相手の初手：${handNames[first]}</h4>
+            <p>集計対象：${total}試合</p>
+
+            ${probabilityHTML(counts)}
+            ${recommendationHTML(counts)}
+          </div>
+        `;
+      }).join('')}
+    </section>
+  `;
+
+  // 三手目の分析
+  const thirdHTML = `
+    <section class="analysis-section">
+      <h4>3. 三手目</h4>
+      <p>相手の初手と二手目を条件とした三手目の出現確率</p>
+
+      ${handKeys.map(first => `
+        <div class="branch-card">
+          <h4>相手の初手：${handNames[first]}</h4>
+
+          ${handKeys.map(second => {
+            const counts = thirdCounts[first][second];
+
+            const total = handKeys.reduce(
+              (sum, hand) => sum + counts[hand],
+              0
+            );
+
+            return `
+              <div class="branch-position">
+                <h5>相手の二手目：${handNames[second]}</h5>
+                <p>集計対象：${total}試合</p>
+
+                ${probabilityHTML(counts)}
+                ${recommendationHTML(counts)}
               </div>
-            `).join('')
-        }
-      </div>
-    `;
-  }).join('');
+            `;
+          }).join('')}
+        </div>
+      `).join('')}
+    </section>
+  `;
 
+  // 四手目以降の分析
+  const fourthHTML = `
+    <section class="analysis-section">
+      <h4>4. 四手目以降</h4>
+      <p>全対戦の全手を対象とした出現確率</p>
+      <p>集計対象：${totalOverall}手</p>
+
+      ${probabilityHTML(overallCounts)}
+      ${recommendationHTML(overallCounts)}
+
+      <p class="sample-count">
+        ※四手目以降は、過去の全対戦における手の出現傾向を使った共通の推奨です。
+      </p>
+    </section>
+  `;
+
+  // 分析画面
   container.innerHTML = `
     <h3>${escapeHTML(player.name)} の分析結果</h3>
 
-    <p>総記録数：${total}手</p>
-    <p>対戦記録数：${playerRecords.length}試合</p>
+    <p>対戦記録：${playerRecords.length}件</p>
 
-    <h4>1. 全体の手の出現割合</h4>
-    ${handKeys.map(hand => `
-      <div class="record-item">
-        ${handNames[hand]}：
-        ${(probabilities[hand] * 100).toFixed(1)}%
-        （${counts[hand]}回）
-      </div>
-    `).join('')}
-
-    <h4>2. 初手の出現確率</h4>
-    <p class="sample-count">
-      初手の集計対象：${firstHandTotal}試合
-    </p>
-    ${firstHandHTML}
-
-    <h4>3. 初手からの分岐確率</h4>
-    <p class="sample-count">
-      初手を条件として、2〜5手目の分布を集計しています。
-    </p>
-    ${firstBranchHTML}
-
-    <h4>4. 直前の手からの遷移確率</h4>
-    <p class="sample-count">
-      集計対象：${transitionTotal}回の手の遷移
-    </p>
-    ${transitionHTML}
-
-    <h4>5. 期待値（勝ち +1 / 引き分け 0 / 負け -1）</h4>
-    ${handKeys.map(hand => `
-      <div class="record-item">
-        ${handNames[hand]}：
-        ${expectedValues[hand] >= 0 ? '+' : ''}
-        ${expectedValues[hand].toFixed(3)}
-      </div>
-    `).join('')}
-
-    <div class="player-result">
-      <p>期待値が最も高い手</p>
-      <h2>${handNames[bestHand]}</h2>
-      <p>※全体の出現頻度から計算した理論上の期待値です。</p>
-    </div>
-
-    <h4>6. 対戦履歴</h4>
-    ${playerRecords.map(record => `
-      <div class="record-item">
-        ${escapeHTML(record.date)}：
-        ${record.hands.map(hand => handNames[hand]).join(' → ')}
-      </div>
-    `).join('')}
+    ${firstHTML}
+    ${secondHTML}
+    ${thirdHTML}
+    ${fourthHTML}
   `;
 }
 
