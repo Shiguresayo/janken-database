@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="プレイヤーごとのじゃんけん傾向を記録・分析するツール">
+  <title>Janken Database</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="header">
+  <div class="container header-inner">
+    <a href="#" class="logo">JANKEN DATABASE</a>
+    <span class="header-label">PLAYER ANALYSIS SYSTEM</span>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <p class="eyebrow">ROCK PAPER SCISSORS ANALYSIS</p>
+    <h1>Janken Database</h1>
+    <p>プレイヤーのじゃんけん傾向を記録・分析するデータベース</p>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">01 / PLAYER</p>
+        <h2>プレイヤー登録</h2>
+      </div>
+    </div>
+
+    <form id="player-form" class="panel">
+      <label for="player-name">ハンドルネーム</label>
+      <div class="input-row">
+        <input
+          type="text"
+          id="player-name"
+          placeholder="例：Player_001"
+          maxlength="40"
+          required
+        >
+        <button type="submit">登録する</button>
+      </div>
+      <p id="player-message" class="message"></p>
+    </form>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">02 / SEARCH</p>
+        <h2>プレイヤー検索</h2>
+      </div>
+    </div>
+
+    <div class="panel">
+      <label for="search-name">ハンドルネーム</label>
+      <div class="input-row">
+        <input
+          type="text"
+          id="search-name"
+          placeholder="検索するプレイヤー名"
+        >
+        <button id="search-button" type="button">検索</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">03 / RECORD</p>
+        <h2>対戦記録入力</h2>
+      </div>
+    </div>
+
+    <form id="record-form" class="panel">
+
+      <label for="opponent-name">対戦相手</label>
+      <input
+        type="text"
+        id="opponent-name"
+        placeholder="ハンドルネーム"
+        required
+      >
+
+      <label for="record-date">対戦日</label>
+      <input type="date" id="record-date" required>
+
+      <div class="hands-heading">
+        <h3>相手が出した手</h3>
+        <span>最大5手</span>
+      </div>
+
+      <div id="hand-inputs"></div>
+
+      <button type="submit" class="submit-button">
+        対戦記録を保存
+      </button>
+
+      <p id="record-message" class="message"></p>
+    </form>
+  </section>
+
+  <section class="section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">04 / ANALYSIS</p>
+        <h2>分析画面</h2>
+      </div>
+    </div>
+
+    <div id="analysis-area" class="panel empty-state">
+      <p>プレイヤーを検索すると分析結果が表示されます。</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>JANKEN DATABASE</p>
+  <span>PLAYER BEHAVIOR ANALYSIS SYSTEM</span>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
