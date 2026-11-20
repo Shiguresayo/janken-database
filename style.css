@@ -377,3 +377,30 @@ button:hover {
     grid-template-columns: 1fr;
   }
 }
+/* =====================================
+   プレイヤー検索サジェスト
+===================================== */
+
+.player-suggestions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  gap: 4px;
+}
+
+.suggestion-item {
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.suggestion-item:hover {
+  background: #eaeaea;
+}
