@@ -227,7 +227,7 @@ document.getElementById('record-form')
 const searchInput = document.getElementById('search-name');
 const suggestionContainer = document.getElementById('player-suggestions');
 
-// ひらがな・カタカナを統一する
+// ひらがな・カタカナを統一
 function normalizePlayerName(value) {
   return String(value)
     .normalize('NFKC')
@@ -238,19 +238,11 @@ function normalizePlayerName(value) {
     );
 }
 
-// 入力時に候補を表示
-searchInput.addEventListener('input', () => {
-  const query = normalizePlayerName(searchInput.value);
-
+// 候補一覧を表示
+function showPlayerSuggestions(matchedPlayers) {
   suggestionContainer.innerHTML = '';
 
-  if (!query) return;
-
-  const suggestions = players.filter(player =>
-    normalizePlayerName(player.name).includes(query)
-  ).slice(0, 8);
-
-  suggestions.forEach(player => {
+  matchedPlayers.slice(0, 10).forEach(player => {
     const button = document.createElement('button');
 
     button.type = 'button';
@@ -260,34 +252,62 @@ searchInput.addEventListener('input', () => {
     button.addEventListener('click', () => {
       searchInput.value = player.name;
       suggestionContainer.innerHTML = '';
-      searchPlayer();
+      searchPlayer(player.name);
     });
 
     suggestionContainer.appendChild(button);
   });
+}
+
+// 入力時のサジェスト
+searchInput.addEventListener('input', async () => {
+  const query = normalizePlayerName(searchInput.value);
+
+  suggestionContainer.innerHTML = '';
+
+  if (!query) return;
+
+  try {
+    // プレイヤー情報が空なら再取得
+    if (players.length === 0) {
+      await loadPlayers();
+    }
+
+    const matchedPlayers = players.filter(player =>
+      normalizePlayerName(player.name).includes(query)
+    );
+
+    showPlayerSuggestions(matchedPlayers);
+
+  } catch (error) {
+    console.error('サジェスト取得失敗:', error);
+  }
 });
 
 // 検索ボタン
 document.getElementById('search-button')
-  .addEventListener('click', searchPlayer);
+  .addEventListener('click', () => searchPlayer());
 
 // Enterキー
 searchInput.addEventListener('keydown', event => {
   if (event.key === 'Enter') {
     event.preventDefault();
-    suggestionContainer.innerHTML = '';
     searchPlayer();
   }
 });
 
 
-async function searchPlayer() {
-  const name = document
-    .getElementById('search-name')
-    .value.trim();
+// =====================================
+// プレイヤー検索処理
+// =====================================
+
+async function searchPlayer(selectedName = null) {
+  const name = selectedName || searchInput.value.trim();
 
   const result = document.getElementById('search-results');
   const analysis = document.getElementById('analysis-area');
+
+  suggestionContainer.innerHTML = '';
 
   if (!name) {
     result.textContent = 'ハンドルネームを入力してください。';
@@ -296,23 +316,46 @@ async function searchPlayer() {
 
   result.textContent = '検索中...';
 
-  // サーバーからプレイヤー一覧を取得
   try {
+    // 最新のプレイヤー一覧を取得
     await loadPlayers();
-  } catch {
+
+  } catch (error) {
+    console.error(error);
     result.textContent = 'データベースへの接続に失敗しました。';
     return;
   }
 
- const player = players.find(
-  p => normalizePlayerName(p.name) === normalizePlayerName(name)
-);
+  const query = normalizePlayerName(name);
 
-  if (!player) {
-    result.textContent = 'プレイヤーが見つかりません。';
+  // 完全一致を優先
+  const exactMatch = players.find(player =>
+    normalizePlayerName(player.name) === query
+  );
+
+  // 完全一致がなければ部分一致
+  const matchedPlayers = exactMatch
+    ? [exactMatch]
+    : players.filter(player =>
+        normalizePlayerName(player.name).includes(query)
+      );
+
+  if (matchedPlayers.length === 0) {
+    result.textContent = '該当するプレイヤーが見つかりません。';
     analysis.innerHTML = '<p>該当するプレイヤーのデータがありません。</p>';
     return;
   }
+
+  // 複数該当した場合は候補を表示
+  if (matchedPlayers.length > 1) {
+    result.textContent =
+      `${matchedPlayers.length}人のプレイヤーが見つかりました。対象を選択してください。`;
+
+    showPlayerSuggestions(matchedPlayers);
+    return;
+  }
+
+  const player = matchedPlayers[0];
 
   // 対戦記録を取得
   const { data, error } = await db
@@ -327,7 +370,6 @@ async function searchPlayer() {
     return;
   }
 
-  // DBのカラム形式を既存の分析形式に変換
   const playerRecords = (data || []).map(record => ({
     id: record.id,
     playerId: record.player_id,
