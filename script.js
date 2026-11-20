@@ -136,6 +136,7 @@ document.getElementById('search-name').addEventListener('keydown', event => {
   if (event.key === 'Enter') searchPlayer();
 });
 
+
 function searchPlayer() {
   const name = document.getElementById('search-name').value.trim();
   const result = document.getElementById('search-results');
@@ -157,6 +158,12 @@ function searchPlayer() {
       <p>対戦記録：${playerRecords.length}件</p>
     </div>
   `;
+
+  showAnalysis(player, playerRecords, analysis);
+}
+
+// ここから下に既存の showAnalysis() が続く
+
 
 function showAnalysis(player, playerRecords, container) {
   const handKeys = ['rock', 'scissors', 'paper'];
