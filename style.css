@@ -249,6 +249,7 @@ button:hover {
   letter-spacing: 2px;
 }
 
+
 @media (max-width: 600px) {
   .container {
     width: min(100% - 28px, 1000px);
@@ -291,6 +292,8 @@ button:hover {
     padding: 9px 2px;
     font-size: 11px;
   }
+}
+
 /* じゃんけん分析レイアウト */
 
 .analysis-section {
@@ -308,9 +311,9 @@ button:hover {
 .janken-card {
   min-width: 0;
   padding: 16px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .janken-card h4 {
@@ -319,7 +322,7 @@ button:hover {
 }
 
 .janken-condition {
-  color: #777;
+  color: var(--subtext);
   font-size: 12px;
   margin-bottom: 10px;
 }
@@ -342,23 +345,23 @@ button:hover {
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 5px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
 }
 
 .janken-card small {
-  color: #888;
+  color: var(--subtext);
   font-size: 11px;
 }
 
 .janken-card .janken-card {
   margin-top: 10px;
   padding: 10px;
-  background: #fafafa;
+  background: var(--background);
 }
 
 .sample-count {
   margin-top: 20px;
-  color: #777;
+  color: var(--subtext);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -374,6 +377,3 @@ button:hover {
     grid-template-columns: 1fr;
   }
 }
-
-}
-
