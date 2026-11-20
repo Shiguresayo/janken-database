@@ -3,7 +3,7 @@
 // Supabase 接続設定
 // =====================================
 
-const SUPABASE_URL = 'https://opavtvcczutgzsoayvit.supabase.co;
+const SUPABASE_URL = 'https://opavtvcczutgzsoayvit.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_csiIbzeZPShZNm7qH09CCg_UC14egUP';
 
 const db = window.supabase.createClient(
