@@ -134,6 +134,7 @@ document.getElementById('player-form')
     message.textContent = `${name} を登録しました。`;
 
     event.target.reset();
+    recordSuggestionContainer.innerHTML = '';
   });
 
 
