@@ -226,6 +226,58 @@ document.getElementById('record-form')
 
 const searchInput = document.getElementById('search-name');
 const suggestionContainer = document.getElementById('player-suggestions');
+// =====================================
+// 対戦記録登録フォームのサジェスト
+// =====================================
+
+const recordPlayerInput = document.getElementById('opponent-name');
+
+const recordSuggestionContainer =
+  document.getElementById('record-player-suggestions');
+
+// 入力に一致するプレイヤー候補を表示
+function showRecordPlayerSuggestions(matchedPlayers) {
+  recordSuggestionContainer.innerHTML = '';
+
+  matchedPlayers.slice(0, 10).forEach(player => {
+    const button = document.createElement('button');
+
+    button.type = 'button';
+    button.className = 'suggestion-item';
+    button.textContent = player.name;
+
+    button.addEventListener('click', () => {
+      recordPlayerInput.value = player.name;
+      recordSuggestionContainer.innerHTML = '';
+    });
+
+    recordSuggestionContainer.appendChild(button);
+  });
+}
+
+// 入力時のサジェスト
+recordPlayerInput.addEventListener('input', async () => {
+  const query = normalizePlayerName(recordPlayerInput.value);
+
+  recordSuggestionContainer.innerHTML = '';
+
+  if (!query) return;
+
+  try {
+    if (players.length === 0) {
+      await loadPlayers();
+    }
+
+    const matchedPlayers = players.filter(player =>
+      normalizePlayerName(player.name).includes(query)
+    );
+
+    showRecordPlayerSuggestions(matchedPlayers);
+
+  } catch (error) {
+    console.error('対戦相手サジェスト取得失敗:', error);
+  }
+});
 
 // ひらがな・カタカナを統一
 function normalizePlayerName(value) {
